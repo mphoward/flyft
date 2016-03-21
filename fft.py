@@ -5,16 +5,20 @@ __all__ = ['convolve']
 def convolve(f,g,fft=True, periodic=True):
     """Compute the linear or circular convolution of two discrete data sets.
 
-    For small problems, it is usually faster to perform the convolution directly. In this case,
-    `convolve` defaults to the ``numpy.convolve`` routine. For circular convolution, a copy of the smaller of the
-    two arrays must be made. For larger problems, convolution is more efficiently performed as a multiplication in
-    Fourier space followed by inversion. These transforms are performed using Fast Fourier Transform (FFT) methods.
-    FFTs are fastest for intelligently chosen problem sizes (for example, powers of 2). If convolution performance is
-    critical, both methods should be timed, and the optimal one selected.
+    For small problems, it is usually faster to perform the convolution
+    directly. In this case, `convolve` defaults to the ``numpy.convolve``
+    routine. For circular convolution, a copy of the smaller of the
+    two arrays must be made. For larger problems, convolution is more
+    efficiently performed as a multiplication in Fourier space followed by
+    inversion. These transforms are performed using Fast Fourier Transform
+    (FFT) methods. FFTs are fastest for intelligently chosen problem sizes
+    (for example, powers of 2). If convolution performance is critical, both
+    methods should be timed, and the optimal one selected.
 
-    For linear convolutions with FFTs, `f` and `g` are zero-padded to ``len(f)+len(g)-1``. For circular convolutions,
-    the period is taken to be the longer of `f` and `g`. If one is shorter than the other, it is zero-padded with
-    ``numpy.pad``.
+    For linear convolutions with FFTs, `f` and `g` are zero-padded to
+    ``len(f)+len(g)-1``. For circular convolutions, the period is taken to be
+    the longer of `f` and `g`. If one is shorter than the other, it is
+    zero-padded with ``numpy.pad``.
 
     Parameters
     ----------
@@ -58,7 +62,7 @@ def convolve(f,g,fft=True, periodic=True):
         if not periodic:
             return np.convolve(f,g)
         else:
-            # replicate the smaller data set to perform circular convolution without FFT
+            # replicate the smaller data set for circular convolution without FFT
             if len(f) < len(g):
                 ff = np.concatenate((f,f))
                 gg = g
