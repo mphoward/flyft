@@ -26,11 +26,17 @@ class hard(_wall_potential):
     def U(self, type, z):
         assert type in self.system.types
 
-        choice_list = [np.inf * np.ones_like(z)]
-
-        u = np.zeros_like(z)        
+        min_bin = 0
+        max_bin = self.system.Nbins - 1
         for w in self.walls:
-            dz = w.get_distance(z)
-            cond_list = [dz < self.R[type]]
-            u += np.select(cond_list, choice_list)
-        return u
+            if w.normal > 0:
+                min_bin = max(self.system.get_bin(w.origin + self.R[type]), min_bin)
+            else:
+                max_bin = min(self.system.get_bin(w.origin - self.R[type]), max_bin)
+
+        upot = np.zeros_like(self.system.mesh)
+        upot[0:min_bin] = np.inf
+        upot[(max_bin+1):] = np.inf
+
+        bins = self.system.get_bin(np.array(z))
+        return upot[bins]

@@ -17,7 +17,7 @@ class system(object):
         self.L = L
         self.dz = dz
         self.Nbins = int(self.L/self.dz)
-        self.mesh = np.arange(-0.5*self.L, 0.5*self.L, self.dz)
+        self.mesh = -0.5*self.L + np.arange(0,self.Nbins)*self.dz + 0.5*self.dz
 
         # system walls
         self.walls = []
@@ -45,22 +45,11 @@ class system(object):
         return -0.5*self.L + bin*self.dz
 
     def get_bin(self, z):
-        z_pbc = self.wrap(z)
-        bin = int((z_pbc+0.5*self.L)/self.dz)
-        assert bin >=0 and bin < self.Nbins
-
-        return bin
-
-    def wrap(self, z):
-        z_pbc = z
-        if z < -0.5*self.L:
-            z_pbc += self.L
-        elif z >= 0.5*self.L:
-            z_pbc -= self.L
-        return z_pbc
-
-    def get_minimum_image(self, dz):
-        return dz - self.L*round(dz/self.L)
+        try:
+            bin = ((np.array(z)+0.5*self.L)/self.dz)
+            return bin.astype(int)
+        except TypeError:
+            return int(bin)
 
 class wall(object):
     def __init__(self, system, origin, normal):
