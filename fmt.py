@@ -40,7 +40,7 @@ class rosenfeld(object):
         n = np.zeros(self.system.Nbins)
 
         for t in self.system.types:
-            z = np.arange(-self.R[t],self.R[t], self.system.dz)
+            z = np.arange(-self.R[t],self.R[t], self.system.dz) + 0.5*self.system.dz
             w = np.zeros(self.system.Nbins)
             # fill in and then roll to include boundaries correctly
             w[0:len(z)] = self.w(a,t,z)
@@ -97,7 +97,7 @@ class rosenfeld(object):
         mu_ex = {}
 
         for t in self.system.types:
-            z = np.arange(-self.R[t],self.R[t], self.system.dz)
+            z = np.arange(-self.R[t],self.R[t], self.system.dz) + 0.5*self.system.dz
             mu_ex[t] = np.zeros(self.system.Nbins)
 
             for a in (0,1,2,3,'v1','v2'):
