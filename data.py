@@ -1,5 +1,11 @@
 import numpy as np
 
+# python 2/3 compatibility layer for string testing
+try:
+    basestring
+except NameError:
+    basestring = str
+
 class system(object):
     """Simulation system
     Parameters
@@ -67,3 +73,120 @@ class wall(object):
 
     def get_distance(self, z):
         return self.normal * (z - self.origin)
+
+class coeff(object):
+    """Coefficient dictionary
+
+    Parameters
+    ----------
+    system : data.system
+        The system to attach to
+
+    require : array like, optional
+        List of parameter fields to require in order to validate the coefficient
+        dictionary
+
+    Examples
+    --------
+    my_coeff = coeff(system)
+    my_coeff = coeff(system, require=['foo','bar'])
+
+    """
+    def __init__(self, system, require=None):
+        self.system = system
+
+        if isinstance(require,basestring):
+            self.require = [require]
+        else:
+            self.require = require
+
+        self._params = {}
+
+        # flag to signal revalidation if None
+        # otherwise just return the cached value
+        self.__valid = None
+
+    def set(self, type, **coeffs):
+        """Set a coefficient entry
+
+        Parameters
+        ----------
+        type : string
+            Particle type to enter coefficient
+
+        coeffs : keyword arguments
+            Coefficients to enter as keyword arguments
+
+        Examples
+        --------
+        my_coeff.set('A', sigma=1.0, epsilon=2.0)
+        """
+        assert type in self.system.types
+
+        # force the type into the parameter dict
+        if not type in self._params:
+            self._params[type] = {}
+
+        for key, val in coeffs.iteritems():
+            self._params[type][key] = val
+
+        self.__valid = None
+
+    def get(self, type, name):
+        """Get a coefficient entry
+
+        Parameters
+        ----------
+        type : string
+            Particle type to get coefficient
+
+        name : string
+            Name of coefficient to get
+
+        Examples
+        --------
+        my_coeff.get('A', 'sigma')
+
+        Raises
+        ------
+        An exception if the requested parameter does not exist
+        """
+        assert type in self.system.types
+
+        if name in self._params[type]:
+            return self._params[type][name]
+        else:
+            raise Exception('requested parameter is not set!')
+
+    def verify(self):
+        """Verifies all required keys are set in the dictionary
+
+        A dictionary is valid if an entry exists for every coefficient name
+        in ``require`` for every type.
+
+        The current state of the dictionary validity may be cached to avoid
+        overhead of duplicate calls during a run. The cached value is destroyed
+        if an entry is modified using set().
+
+        Returns
+        -------
+        __valid : bool
+            True if the coefficient dictionary has all required entries
+
+        """
+        if self.require is None:
+            return True
+        elif self.__valid is not None:
+            return self.__valid
+
+        self.__valid = True
+        try:
+            for t in self.system.types:
+                for r in self.require:
+                    if not r in self._params[t]:
+                        self.__valid = False
+                        return self.__valid
+        except KeyError:
+            self.__valid = False
+
+        return self.__valid

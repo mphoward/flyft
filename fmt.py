@@ -1,35 +1,40 @@
 import numpy as np
 import fft
+import data
 
 class rosenfeld(object):
     def __init__(self, system, sigma={}):
         self.system = system
 
-        self.R = {}
+        self.coeff = data.coeff(self.system, require='sigma')
+        # flood the coefficient dictionary with defaults
         for t in self.system.types:
-            if t in sigma:
-                self.R[t] = 0.5*sigma[t]
-            elif self.system.sigma[t] is not None:
-                self.R[t] = 0.5*self.system.sigma[t]
-            else:
-                raise Exception('sigma must be set for all species to use HS')
+            self.coeff.set(t, sigma=self.system.sigma[t])
 
         self.weights = (0,1,2,3,'v1','v2')
 
     def w(self, a, type, z):
         assert a in self.weights
 
+        if not self.coeff.verify():
+            raise Exception('not all parameters are set!')
+
+        sigma = self.coeff.get(type, 'sigma')
+        if self._is_ideal(sigma):
+            return np.zeros_like(z)
+
+        R = 0.5*sigma
         if a == 0:
-            return (0.5 / self.R[type]) * np.ones_like(z)
+            return (0.5 / R) * np.ones_like(z)
         elif a == 1:
             return 0.5 * np.ones_like(z)
         elif a == 2:
-            return 2.*np.pi*self.R[type] * np.ones_like(z)
+            return 2.*np.pi*R * np.ones_like(z)
         elif a == 3:
-            return np.pi*(self.R[type]**2 - z*z)
+            return np.pi*(R**2 - z*z)
         elif a == 'v1':
             # return as scalar because only nonzero entry is along ez
-            return 0.5*z/self.R[type]
+            return 0.5*z/R
         elif a == 'v2':
             # return as scalar because only nonzero entry is along ez
             return 2.*np.pi*z
@@ -37,10 +42,17 @@ class rosenfeld(object):
     def n(self, a, densities):
         assert a in self.weights
 
+        if not self.coeff.verify():
+            raise Exception('not all parameters are set!')
+
         n = np.zeros(self.system.Nbins)
 
         for t in self.system.types:
-            z = np.arange(-self.R[t],self.R[t], self.system.dz) + 0.5*self.system.dz
+            sigma = self.coeff.get(t,'sigma')
+            if self._is_ideal(sigma):
+                continue
+
+            z = np.arange(-0.5*sigma,0.5*sigma, self.system.dz) + 0.5*self.system.dz
             w = np.zeros(self.system.Nbins)
             # fill in and then roll to include boundaries correctly
             w[0:len(z)] = self.w(a,t,z)
@@ -48,6 +60,10 @@ class rosenfeld(object):
 
             n += self.system.dz * fft.convolve(densities[t], w, fft=True, periodic=True)
         return n
+
+    def _is_ideal(self,sigma):
+        """Check if particle diameter signals ideal"""
+        return sigma is None or not sigma > 0.0 or sigma is False
 
     def f1(self, n3):
         return -np.log(1.-n3)
@@ -93,12 +109,20 @@ class rosenfeld(object):
     def mu_ex(self, densities):
         dphi_dn = self.dphi(densities)
 
+        if not self.coeff.verify():
+            raise Exception('not all parameters are set!')
+
         # initialize for summation
         mu_ex = {}
 
         for t in self.system.types:
-            z = np.arange(-self.R[t],self.R[t], self.system.dz) + 0.5*self.system.dz
             mu_ex[t] = np.zeros(self.system.Nbins)
+
+            sigma = self.coeff.get(t, 'sigma')
+            if self._is_ideal(sigma):
+                continue
+
+            z = np.arange(-0.5*sigma,0.5*sigma, self.system.dz) + 0.5*self.system.dz
 
             for a in (0,1,2,3,'v1','v2'):
                 w = np.zeros(self.system.Nbins)
