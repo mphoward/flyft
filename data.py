@@ -111,8 +111,8 @@ class coeff(object):
 
         Parameters
         ----------
-        type : string
-            Particle type to enter coefficient
+        type : string or array_like
+            Particle type(s) to enter coefficient
 
         coeffs : keyword arguments
             Coefficients to enter as keyword arguments
@@ -120,15 +120,20 @@ class coeff(object):
         Examples
         --------
         my_coeff.set('A', sigma=1.0, epsilon=2.0)
+        my_coeff.set(['B','C'], sigma=3.0)
         """
-        assert type in self.system.types
+        if isinstance(type, basestring):
+            types = [types]
+        else:
+            types = type
 
-        # force the type into the parameter dict
-        if not type in self._params:
-            self._params[type] = {}
+        for t in types:
+            # force the type into the parameter dict
+            if not t in self._params:
+                self._params[t] = {}
 
-        for key, val in coeffs.iteritems():
-            self._params[type][key] = val
+            for key, val in coeffs.iteritems():
+                self._params[t][key] = val
 
         self.__valid = None
 
@@ -151,12 +156,7 @@ class coeff(object):
         ------
         An exception if the requested parameter does not exist
         """
-        assert type in self.system.types
-
-        if name in self._params[type]:
-            return self._params[type][name]
-        else:
-            raise Exception('requested parameter is not set!')
+        return self._params[type][name]
 
     def verify(self):
         """Verifies all required keys are set in the dictionary
