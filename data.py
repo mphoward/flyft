@@ -123,11 +123,9 @@ class coeff(object):
         my_coeff.set(['B','C'], sigma=3.0)
         """
         if isinstance(type, basestring):
-            types = [types]
-        else:
-            types = type
+            type = [type]
 
-        for t in types:
+        for t in type:
             # force the type into the parameter dict
             if not t in self._params:
                 self._params[t] = {}
@@ -186,6 +184,55 @@ class coeff(object):
                     if not r in self._params[t]:
                         self.__valid = False
                         return self.__valid
+        except KeyError:
+            self.__valid = False
+
+        return self.__valid
+
+class pair_coeff(coeff):
+    def __init__(self, system, require=None):
+        coeff.__init__(self, system, require)
+
+    def set(self, i, j, **coeffs):
+        if isinstance(i, basestring):
+            i = [i]
+        if isinstance(j, basestring):
+            j = [j]
+
+        # unpack coefficients into the types
+        for type_i in i:
+            if not type_i in self._params:
+                self._params[type_i] = {}
+            for type_j in j:
+                if not type_j in self._params[type_i]:
+                    self._params[type_i][type_j] = {}
+                for key, val in coeffs.iteritems():
+                    self._params[type_i][type_j][key] = val
+                    if type_i != type_j:
+                        self._params[type_j][type_i][key] = val
+
+        self.__valid = None
+
+    def get(self, i, j, name):
+        try:
+            return self._params[i][j][name]
+        except KeyError:
+            return self._params[j][i][name]
+
+    def verify(self):
+        if self.require is None:
+            return True
+        elif self.__valid is not None:
+            return self.__valid
+
+        self.__valid = True
+        try:
+            for i in self.system.types:
+                for j in self.system.types:
+                    for r in self.require:
+                        if not r in self._params[i][j]:
+                            self.__valid = False
+                            return self.__valid
         except KeyError:
             self.__valid = False
 
