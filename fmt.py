@@ -52,7 +52,7 @@ class rosenfeld(object):
             if self._is_ideal(sigma):
                 continue
 
-            z = np.arange(-0.5*sigma,0.5*sigma, self.system.dz) + 0.5*self.system.dz
+            z = np.arange(-0.5*sigma,0.5*sigma, self.system.dz)
             w = np.zeros(self.system.Nbins)
             # fill in and then roll to include boundaries correctly
             w[0:len(z)] = self.w(a,t,z)
@@ -122,7 +122,7 @@ class rosenfeld(object):
             if self._is_ideal(sigma):
                 continue
 
-            z = np.arange(-0.5*sigma,0.5*sigma, self.system.dz) + 0.5*self.system.dz
+            z = np.arange(-0.5*sigma,0.5*sigma, self.system.dz)
 
             for a in (0,1,2,3,'v1','v2'):
                 w = np.zeros(self.system.Nbins)

@@ -23,7 +23,7 @@ class system(object):
         self.L = L
         self.dz = dz
         self.Nbins = int(self.L/self.dz)
-        self.mesh = -0.5*self.L + np.arange(0,self.Nbins)*self.dz + 0.5*self.dz
+        self.mesh = -0.5*self.L + np.arange(0,self.Nbins)*self.dz
 
         # system walls
         self.walls = []
