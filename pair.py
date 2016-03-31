@@ -17,7 +17,7 @@ class _wca(object):
             raise Exception('all required coefficients are not set!')
 
         upot = np.zeros_like(r)
-        rs = np.array(r)
+        rs = np.fabs(np.array(r))
 
         rmin = self.get_rmin(i, j)
         upot[rs < rmin] = self.energy(i, j, rmin)
@@ -63,7 +63,7 @@ class lj(_wca):
             U_cut = 4.*eps*((sigma/rcut)**12 - (sigma/rcut)**6)
 
         # only perform calculations for points inside the rcut
-        flags = (rs <= rcut)
+        flags = (np.fabs(rs) <= rcut)
         ri = sigma/rs[flags]
         r2i = ri*ri
         r4i = r2i*r2i
