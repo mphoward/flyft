@@ -80,9 +80,9 @@ class lj93(_wall_potential):
         # exclude beyond the origin of the wall, which has a divergence
         min_bin, max_bin = self.get_bounds(0.0)
         if min_bin >= 0:
-            upot[0:min_bin] = np.inf
+            upot[0:min_bin+2] = np.inf
         if max_bin < self.system.Nbins:
-            upot[max_bin:] = np.inf
+            upot[max_bin-1:] = np.inf
 
         # select the points that are inside the walls to do the calculation
         bins = self.system.get_bin(z)
@@ -95,7 +95,7 @@ class lj93(_wall_potential):
         if self.coeff.get(type,'shift'):
             U_cut = A/rcut**9 - B/rcut**3
 
-        flags = np.logical_and(bins >= min_bin, bins < max_bin)
+        flags = np.logical_and(bins > min_bin, bins < max_bin)
         for w in self.walls:
             cut_bin = self.system.get_bin(w.origin + w.normal * rcut)
             if w.normal > 0:
@@ -142,9 +142,9 @@ class lj104(_wall_potential):
         # exclude beyond the origin of the wall, which has a divergence
         min_bin, max_bin = self.get_bounds(0.0)
         if min_bin >= 0:
-            upot[0:min_bin] = np.inf
+            upot[0:min_bin+2] = np.inf
         if max_bin < self.system.Nbins:
-            upot[max_bin:] = np.inf
+            upot[max_bin-1:] = np.inf
 
         # select the points that are inside the walls to do the calculation
         bins = self.system.get_bin(z)
@@ -156,7 +156,7 @@ class lj104(_wall_potential):
         if self.coeff.get(type,'shift'):
             U_cut = A/rcut**10 - B/rcut**4
 
-        flags = np.logical_and(bins >= min_bin, bins < max_bin)
+        flags = np.logical_and(bins > min_bin, bins < max_bin)
         for w in self.walls:
             cut_bin = self.system.get_bin(w.origin + w.normal * rcut)
             if w.normal > 0:
