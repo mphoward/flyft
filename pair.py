@@ -20,9 +20,8 @@ class _wca(object):
         rs = np.fabs(np.array(r))
 
         rmin = self.get_rmin(i, j)
-        upot[rs < rmin] = self.energy(i, j, rmin)
-
         flag_eval = rs >= rmin
+        upot[~flag_eval] = self.energy(i, j, rmin)
         upot[flag_eval] = self.energy(i, j, rs[flag_eval])
 
         return upot
