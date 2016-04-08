@@ -18,8 +18,6 @@ class system(object):
 
     """
     def __init__(self, L, dz):
-        assert int(L / dz) * dz == L
-
         self.L = L
         self.dz = dz
         self.Nbins = int(self.L/self.dz)
@@ -209,6 +207,9 @@ class pair_coeff(coeff):
                 for key, val in coeffs.iteritems():
                     self._params[type_i][type_j][key] = val
                     if type_i != type_j:
+                        if not type_j in self._params:
+                            self._params[type_j] = {}
+                            self._params[type_j][type_i] = {}
                         self._params[type_j][type_i][key] = val
 
         self.__valid = None
