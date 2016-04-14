@@ -52,13 +52,30 @@ class rosenfeld(object):
             if self._is_ideal(sigma):
                 continue
 
-            z = np.arange(-0.5*sigma,0.5*sigma, self.system.dz)
-            w = np.zeros(self.system.Nbins)
-            # fill in and then roll to include boundaries correctly
-            w[0:len(z)] = self.w(a,t,z)
-            w = np.roll(w, -len(z)/2)
+            try:
+                rho = np.array(densities[t])
+                w = np.zeros(len(rho))
+                z = np.arange(-0.5*sigma,0.5*sigma, self.system.dz)
+                # fill in and then roll to include boundaries correctly
+                w[0:len(z)] = self.w(a,t,z)
+                w = np.roll(w, -len(z)/2)
 
-            n += self.system.dz * fft.convolve(densities[t], w, fft=True, periodic=True)
+                n += self.system.dz * fft.convolve(rho, w, fft=True, periodic=True)
+            except TypeError:
+                n = 0.0
+
+                # if the density is not on a grid, then we can assume it is a constant
+                # and the convolutions simplify considerably
+                if a == 0:
+                    n += densities[t]
+                elif a == 1:
+                    n += densities[t] * 0.5*sigma
+                elif a == 2:
+                    n += 4.0 * np.pi * (0.5*sigma)**2 * densities[t]
+                elif a == 3:
+                    n += (4.0 * np.pi / 3.0) * (0.5*sigma)**3 * densities[t]
+                elif a == 'v1' or a == 'v2':
+                    n += 0.0
         return n
 
     def _is_ideal(self,sigma):
@@ -71,17 +88,26 @@ class rosenfeld(object):
     def df1(self,n3):
         return 1./(1.-n3)
 
+    def ddf1(self, n3):
+        return 1./(1.-n3)**2
+
     def f2(self, n3):
         return 1./(1.-n3)
 
     def df2(self, n3):
         return 1./(1.-n3)**2
 
+    def ddf2(self, n3):
+        return 2./(1.-n3)**2
+
     def f4(self, n3):
         return 1./(24.*np.pi*(1.-n3)**2)
 
     def df4(self, n3):
         return 1./(12.*np.pi*(1.-n3)**3)
+
+    def ddf4(self, n3):
+        return 1./(4.*np.pi*(1.-n3)**4)
 
     def phi(self, densities):
         # precompute the weights
@@ -91,6 +117,9 @@ class rosenfeld(object):
         n3 = self.n(3, densities)
         nv1 = self.n('v1', densities)
         nv2 = self.n('v2', densities)
+
+        if np.any(n3 > 1.0):
+            raise Exception('n3 > 1.0, solution may be diverging!')
 
         return self.f1(n3)*n0 + self.f2(n3)*(n1*n2 - nv1*nv2) + self.f4(n3)*(n2**3 - 3.*n2*nv2**2)
 
@@ -116,6 +145,42 @@ class rosenfeld(object):
         dphi_dn['v2'] = -self.f2(n3)*nv1 - 6.*self.f4(n3)*n2*nv2
 
         return dphi_dn
+
+    def dphi2(self,densities):
+        # precompute the weights
+        weight_types = (0,1,2,3,'v1','v2')
+
+        n = {}
+        dphi2_dn = {}
+        for a in weight_types:
+            n[a] = self.n(a, densities)
+            dphi2_dn[a] = {}
+            for b in weight_types:
+                dphi2_dn[a][b] = np.zeros_like(n[a])
+
+        if np.any(n[3] > 1.0):
+            raise Exception('n3 > 1.0, solution may be diverging!')
+
+        # n0 derivatives
+        dphi2_dn[3][0] = dphi2_dn[0][3] = self.df1(n[3])
+        # n1 derivatives
+        dphi2_dn[2][1] = dphi2_dn[1][2] = self.f2(n[3])
+        dphi2_dn[3][1] = dphi2_dn[1][3] = self.df2(n[3]) * n[2]
+        # n2 derivatives
+        dphi2_dn[2][2] = 6.0 * self.f4(n[3]) * n[2]
+        dphi2_dn[3][2] = dphi2_dn[2][3] = self.df2(n[3]) * n[1] + 3.0 * self.df4(n[3]) * (n[2]**2 - n['v2']**2)
+        dphi2_dn['v2'][2] = dphi2_dn[2]['v2'] = -6.0 * self.f4(n[3]) * n['v2']
+        # n3 derivatives
+        dphi2_dn['v1'][3] = dphi2_dn[3]['v1'] = -self.df2(n[3]) * n['v2']
+        dphi2_dn['v2'][3] = dphi2_dn[3]['v2'] = -self.df2(n[3]) * n['v1'] - 6.0 * self.df4(n[3]) * n[2] * n['v2']
+        dphi2_dn[3][3] = self.ddf1(n[3]) * n[0] + self.ddf2(n[1] * n[2] - n['v1'] * n['v2']) + self.ddf4(n[3]) * (n[2]**3 - 3.0 * n[2] * n['v2']**2)
+        # nv1 derivatives
+        dphi2_dn['v2']['v1'] = dphi2_dn['v1']['v2'] = -self.f2(n[3])
+        # nv2 derivatives
+        dphi2_dn['v2']['v2'] = -6.0 * self.f4(n[3]) * n[2]
+
+        return dphi2_dn
+
 
     def F_ex(self, densities):
         phi = self.phi(densities)
