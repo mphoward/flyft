@@ -83,6 +83,17 @@ class rosenfeld(object):
     def df4(self, n3):
         return 1./(12.*np.pi*(1.-n3)**3)
 
+    def phi(self, densities):
+        # precompute the weights
+        n0 = self.n(0, densities)
+        n1 = self.n(1, densities)
+        n2 = self.n(2, densities)
+        n3 = self.n(3, densities)
+        nv1 = self.n('v1', densities)
+        nv2 = self.n('v2', densities)
+
+        return self.f1(n3)*n0 + self.f2(n3)*(n1*n2 - nv1*nv2) + self.f4(n3)*(n2**3 - 3.*n2*nv2**2)
+
     def dphi(self, densities):
         # precompute the weights
         n0 = self.n(0, densities)
@@ -105,6 +116,10 @@ class rosenfeld(object):
         dphi_dn['v2'] = -self.f2(n3)*nv1 - 6.*self.f4(n3)*n2*nv2
 
         return dphi_dn
+
+    def F_ex(self, densities):
+        phi = self.phi(densities)
+        return self.system.dz * np.sum(phi)
 
     def mu_ex(self, densities):
         dphi_dn = self.dphi(densities)
