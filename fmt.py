@@ -56,8 +56,13 @@ class rosenfeld(object):
                 rho = np.array(densities[t])
                 w = np.zeros(len(rho))
                 z = np.arange(-0.5*sigma,0.5*sigma+self.system.dz, self.system.dz)
+                # simpson's rule for integration (numerical recipes, ch. 4, p. 160)
+                integ_temp = np.ones_like(z)
+                integ_temp[-1] = integ_temp[0] = 3./8.
+                integ_temp[-2] = integ_temp[1] = 7./6.
+                integ_temp[-3] = integ_temp[2] = 23./24.
                 # fill in and then roll to include boundaries correctly
-                w[0:len(z)] = self.w(a,t,z)
+                w[0:len(z)] = integ_temp * self.w(a,t,z)
                 w = np.roll(w, -len(z)/2)
 
                 n += self.system.dz * fft.convolve(rho, w, fft=True, periodic=True)
@@ -206,8 +211,13 @@ class rosenfeld(object):
 
             for a in (0,1,2,3,'v1','v2'):
                 w = np.zeros(self.system.Nbins)
+                # simpson's rule for integration (numerical recipes, ch. 4, p. 160)
+                integ_temp = np.ones_like(z)
+                integ_temp[-1] = integ_temp[0] = 3./8.
+                integ_temp[-2] = integ_temp[1] = 7./6.
+                integ_temp[-3] = integ_temp[2] = 23./24.
                 # fill in and then roll to include boundaries correctly
-                w[0:len(z)] = self.w(a,t,z)
+                w[0:len(z)] = integ_temp * self.w(a,t,z)
                 w = np.roll(w, -len(z)/2)
                 sign = 1.0
                 if a == 'v1' or a == 'v2':
