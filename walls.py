@@ -52,6 +52,66 @@ class hard(_wall_potential):
         bins = self.system.get_bin(z)
         return upot[bins]
 
+class depletion(_wall_potential):
+    def __init__(self, system, walls):
+        """Depletion pair force between large hard spheres in a binary mixture
+
+        Roth, Evans, and Dietrich, Phys. Rev. E 2000, 62, 5360 - 5377
+        """
+        _wall_potential.__init__(self, system, walls)
+        if len(self.system.types) > 2:
+            raise Exception('Depletion wall force should only be used in binary systems')
+
+        self.coeff.require = ['sigma','rho','rcut']
+        # flood the coefficient dictionary with defaults
+        for t in self.system.types:
+            self.coeff.set(t, sigma=self.system.sigma[t])
+
+    def U(self, type, z):
+        assert type in self.system.types
+        if not self.coeff.verify():
+            raise Exception('not all parameters are set!')
+
+        upot = np.zeros_like(self.system.mesh)
+
+        # pass on this type if it has no interaction
+        rcut = self.coeff.get(type, 'rcut')
+        if not rcut or not rcut > 0.0 or rcut is None:
+            return upot
+
+        sigma = self.coeff.get(type, 'sigma')
+        rho = self.coeff.get(type, 'rho')
+        if np.isclose(rho,0.0):
+            return upot
+
+        # trivial cases are taken care of, now do the hard work
+        # exclude beyond the origin of the wall, which has a divergence
+        min_bin, max_bin = self.get_bounds(sigma)
+        if min_bin >= 0:
+            upot[0:min_bin] = np.inf
+        if max_bin < self.system.Nbins:
+            upot[max_bin:] = np.inf
+
+        Rs = 0.5 * rcut
+        Rb = 0.5 * sigma
+        # select the points that are inside the walls to do the calculation
+        bins = self.system.get_bin(z)
+        flags = np.logical_and(bins >= min_bin, bins < max_bin)
+        for w in self.walls:
+            cut_bin = self.system.get_bin(w.origin + w.normal * (rcut + Rb))
+            if w.normal > 0:
+                cut_flags = np.logical_and(flags, bins < cut_bin)
+            else:
+                cut_flags = np.logical_and(flags, bins >= cut_bin)
+
+            if not np.any(cut_flags):
+                continue
+
+            h = w.normal * (z[cut_flags] - w.origin) - Rb
+
+            upot[cut_flags] += -2.0 * rho * np.pi * (2.*Rs - h)*(Rs * (Rb + (1./3.)*Rs)-(h/2.)*(Rb + Rs/3.) - h**2/6.)
+        return upot[bins]
+
 class lj93(_wall_potential):
     def __init__(self, system, walls, shift=False):
         _wall_potential.__init__(self, system, walls)
