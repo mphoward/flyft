@@ -71,3 +71,39 @@ class lj(_wca):
         U[flags] = 4.*eps*(r12i - r6i) - U_cut
 
         return U
+
+class depletion(object):
+    def __init__(self, system):
+        """Depletion pair force between large hard spheres in a binary mixture
+
+        Roth, Evans, and Dietrich, Phys. Rev. E 2000, 62, 5360 - 5377
+        """
+        self.system = system
+        if len(self.system.types) > 2:
+            raise Exception('Depletion pair force should only be used in binary systems')
+
+        self.coeff = data.pair_coeff(self.system, require=['sigma', 'rho', 'rcut'])
+
+    def U(self, i, j, r):
+        if not self.coeff.verify():
+            raise Exception('not all parameters are set!')
+
+        upot = np.zeros_like(r)
+        # pass on this type if it has no interaction
+        rcut = self.coeff.get(i, j, 'rcut')
+        if not rcut or not rcut > 0.0 or rcut is None:
+            return upot
+
+        sigma = self.coeff.get(i, j, 'sigma')
+        rho = self.coeff.get(i, j, 'rho')
+        if np.isclose(rho,0.0):
+            return upot
+
+        rs = np.fabs(np.array(r))
+
+        Rs = 0.5 * rcut
+        Rb = 0.5 * sigma
+        flag_eval = np.logical_and(rs >= Rb, rs <= rcut)
+        h = r[flag_eval] - Rb
+        upot[flag_eval] = -rho * np.pi * (2.*Rs - h)*(Rs * (Rb + (2./3.)*Rs)-(h/2.)*(Rb + Rs/3.) - h**2/12.)
+        return upot
