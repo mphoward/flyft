@@ -39,38 +39,52 @@ class rosenfeld(object):
             # return as scalar because only nonzero entry is along ez
             return 2.*np.pi*z
 
-    def n(self, a, densities):
+    def wk(self, a, type, k):
+        assert a in self.weights
+        if not self.coeff.verify():
+            raise Exception('not all parameters are set!')
+
+        sigma = self.coeff.get(type, 'sigma')
+        wk = np.zeros_like(k, dtype=np.complex_)
+        if self._is_ideal(sigma):
+            return wk
+
+        R = 0.5*sigma
+        omega = 2.0 * np.pi * k
+        flags = ~np.isclose(omega, 0.0)
+        if a == 0:
+            wk[flags] = np.sin(omega[flags] * R) / (omega[flags] * R)
+            wk[~flags] = 1.0
+        elif a == 1:
+            wk[flags] = np.sin(omega[flags] * R)/ omega[flags]
+            wk[~flags] = R
+        elif a == 2:
+            wk[flags] = 2.0 * R * np.sin(omega[flags] * R) / k[flags]
+            wk[~flags] = 4.0 * np.pi * R**2
+        elif a == 3:
+            wk[flags] = (2.0/k[flags]) * (np.sin(omega[flags] * R) - omega[flags] * R * np.cos(omega[flags] * R))/omega[flags]**2
+            wk[~flags] = (4.0*np.pi*R**3)/3.0
+        elif a == 'v1':
+            wk[flags] = -1.j * (np.sin(omega[flags] * R) - omega[flags] * R * np.cos(omega[flags] * R))/(R * omega[flags]**2)
+            wk[~flags] = 0.0
+        elif a == 'v2':
+            wk[flags] = -1.j * (4.0 * np.pi) * (np.sin(omega[flags] * R) - omega[flags] * R * np.cos(omega[flags] * R))/omega[flags]**2
+            wk[~flags] = 0.0
+        return wk
+
+    def n(self, a, densities, bulk=False):
         assert a in self.weights
 
         if not self.coeff.verify():
             raise Exception('not all parameters are set!')
 
-        n = np.zeros(self.system.Nbins)
+        if bulk:
+            n = np.zeros_like(densities[self.system.types[0]])
+            for t in self.system.types:
+                sigma = self.coeff.get(t,'sigma')
+                if self._is_ideal(sigma):
+                    continue
 
-        for t in self.system.types:
-            sigma = self.coeff.get(t,'sigma')
-            if self._is_ideal(sigma):
-                continue
-
-            try:
-                rho = np.array(densities[t])
-                w = np.zeros(len(rho))
-                z = np.arange(-0.5*sigma,0.5*sigma+self.system.dz, self.system.dz)
-                # simpson's rule for integration (numerical recipes, ch. 4, p. 160)
-                integ_temp = np.ones_like(z)
-                integ_temp[-1] = integ_temp[0] = 3./8.
-                integ_temp[-2] = integ_temp[1] = 7./6.
-                integ_temp[-3] = integ_temp[2] = 23./24.
-                # fill in and then roll to include boundaries correctly
-                w[0:len(z)] = integ_temp * self.w(a,t,z)
-                w = np.roll(w, -len(z)/2)
-
-                n += self.system.dz * fft.convolve(rho, w, fft=True, periodic=True)
-            except TypeError:
-                n = 0.0
-
-                # if the density is not on a grid, then we can assume it is a constant
-                # and the convolutions simplify considerably
                 if a == 0:
                     n += densities[t]
                 elif a == 1:
@@ -81,6 +95,18 @@ class rosenfeld(object):
                     n += (4.0 * np.pi / 3.0) * (0.5*sigma)**3 * densities[t]
                 elif a == 'v1' or a == 'v2':
                     n += 0.0
+        else:
+            n = np.zeros_like(self.system.mesh)
+            k_mesh = np.fft.fftfreq(len(self.system.mesh), self.system.dz)
+
+            for t in self.system.types:
+                sigma = self.coeff.get(t,'sigma')
+                if self._is_ideal(sigma):
+                    continue
+
+                rho = np.array(densities[t])
+                n += np.real(np.fft.ifft(np.fft.fft(rho) * self.wk(a,t,k_mesh)))
+
         return n
 
     def _is_ideal(self,sigma):
@@ -201,7 +227,8 @@ class rosenfeld(object):
         mu_ex = {}
 
         for t in self.system.types:
-            mu_ex[t] = np.zeros(self.system.Nbins)
+            mu_ex[t] = np.zeros_like(self.system.mesh)
+            k_mesh = np.fft.fftfreq(len(self.system.mesh), self.system.dz)
 
             sigma = self.coeff.get(t, 'sigma')
             if self._is_ideal(sigma):
@@ -210,20 +237,11 @@ class rosenfeld(object):
             z = np.arange(-0.5*sigma,0.5*sigma+self.system.dz, self.system.dz)
 
             for a in (0,1,2,3,'v1','v2'):
-                w = np.zeros(self.system.Nbins)
-                # simpson's rule for integration (numerical recipes, ch. 4, p. 160)
-                integ_temp = np.ones_like(z)
-                integ_temp[-1] = integ_temp[0] = 3./8.
-                integ_temp[-2] = integ_temp[1] = 7./6.
-                integ_temp[-3] = integ_temp[2] = 23./24.
-                # fill in and then roll to include boundaries correctly
-                w[0:len(z)] = integ_temp * self.w(a,t,z)
-                w = np.roll(w, -len(z)/2)
                 sign = 1.0
                 if a == 'v1' or a == 'v2':
                     sign = -1.0
+                mu_ex[t] += np.real(np.fft.ifft(np.fft.fft(dphi_dn[a]) * sign * self.wk(a,t,k_mesh)))
 
-                mu_ex[t] += self.system.dz * fft.convolve(dphi_dn[a], sign*w, fft=True, periodic=True)
         return mu_ex
 
 class whitebear(rosenfeld):
