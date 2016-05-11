@@ -235,3 +235,33 @@ class lj104(_wall_potential):
             upot[cut_flags] += A*(idz8*idz2) - B*idz4 - U_cut
         return upot[bins]
 
+class harmonic(_wall_potential):
+    def __init__(self, system, walls):
+        _wall_potential.__init__(self, system, walls)
+        self.coeff.require = ['k','offset','g','rcut']
+
+    def U(self, type, z):
+        assert type in self.system.types
+        if not self.coeff.verify():
+            raise Exception('not all parameters are set!')
+
+        upot = np.zeros_like(z)
+
+        # pass on this type if it has no interaction
+        rcut = self.coeff.get(type, 'rcut')
+        if not rcut or not rcut > 0.0 or rcut is None:
+            return upot
+
+        k = self.coeff.get(type, 'k')
+        g = self.coeff.get(type, 'g')
+        offset = self.coeff.get(type, 'offset')
+
+        for w in self.walls:
+            dz = w.normal * (z - (w.origin + offset))
+            harm_flags = np.logical_and(dz >= 0., dz < rcut)
+            upot[harm_flags] = 0.5 * k * dz[harm_flags] * dz[harm_flags]
+
+            lin_flags = dz >= rcut
+            upot[lin_flags] = 0.5 * k * rcut * rcut + g * (dz[lin_flags] - rcut)
+
+        return upot
