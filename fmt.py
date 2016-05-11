@@ -129,7 +129,7 @@ class rosenfeld(object):
         return 1./(1.-n3)**2
 
     def ddf2(self, n3):
-        return 2./(1.-n3)**2
+        return 2./(1.-n3)**3
 
     def f4(self, n3):
         return 1./(24.*np.pi*(1.-n3)**2)
@@ -154,14 +154,14 @@ class rosenfeld(object):
 
         return self.f1(n3)*n0 + self.f2(n3)*(n1*n2 - nv1*nv2) + self.f4(n3)*(n2**3 - 3.*n2*nv2**2)
 
-    def dphi(self, densities):
+    def dphi(self, densities,bulk=False):
         # precompute the weights
-        n0 = self.n(0, densities)
-        n1 = self.n(1, densities)
-        n2 = self.n(2, densities)
-        n3 = self.n(3, densities)
-        nv1 = self.n('v1', densities)
-        nv2 = self.n('v2', densities)
+        n0 = self.n(0, densities, bulk)
+        n1 = self.n(1, densities, bulk)
+        n2 = self.n(2, densities, bulk)
+        n3 = self.n(3, densities, bulk)
+        nv1 = self.n('v1', densities, bulk)
+        nv2 = self.n('v2', densities, bulk)
 
         if np.any(n3 > 1.0):
             raise Exception('n3 > 1.0, solution may be diverging!')
@@ -177,14 +177,14 @@ class rosenfeld(object):
 
         return dphi_dn
 
-    def dphi2(self,densities):
+    def dphi2(self,densities,bulk=False):
         # precompute the weights
         weight_types = (0,1,2,3,'v1','v2')
 
         n = {}
         dphi2_dn = {}
         for a in weight_types:
-            n[a] = self.n(a, densities)
+            n[a] = self.n(a, densities, bulk)
             dphi2_dn[a] = {}
             for b in weight_types:
                 dphi2_dn[a][b] = np.zeros_like(n[a])
